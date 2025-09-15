@@ -50,16 +50,16 @@ public class Main {
 
     Reducer<Integer> reducer1 = new Reducer<Integer>() {
       @Override
-      protected synchronized void reduce(Integer input) {
-        current += input;
+      protected void reduce(Integer input) {
+        current.addAndGet(input);
         count.incrementAndGet();
       }
     };
     Reducer<Integer> reducer2 = new Reducer<Integer>() {
 
       @Override
-      protected synchronized void reduce(Integer input) {
-        current += input;
+      protected void reduce(Integer input) {
+        current.addAndGet(input);
         count.incrementAndGet();
       }
     };
@@ -148,13 +148,13 @@ public class Main {
     distributerPool.awaitTermination(maxTerminationTime, TimeUnit.SECONDS);
     reducerPool.awaitTermination(maxTerminationTime, TimeUnit.SECONDS);
 
-    System.out.println("Sum even: " + reducer1.current);
-    System.out.println("Sum odd: " + reducer2.current);
+    System.out.println("Sum even: " + reducer1.current.get());
+    System.out.println("Sum odd: " + reducer2.current.get());
 
     int total = 0;
     for (int i = 1; i <= n; i++) {
       total += i * i;
     }
-    System.out.println(total - (reducer1.current + reducer2.current));
+    System.out.println(total - (reducer1.current.get() + reducer2.current.get()));
   }
 }
