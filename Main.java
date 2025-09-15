@@ -17,14 +17,12 @@ public class Main {
     int n = 1000;
 
     ExecutorService inputExc = Executors.newCachedThreadPool();
-    for (int i = 1; i <= n; i++) {
-      final int number = i;
-      inputExc.submit(() -> inputQueue.insert(number));
-    }
+    ExecutorService distribute = Executors.newCachedThreadPool();
+    ExecutorService reduce = Executors.newCachedThreadPool();
 
     Mapper<Integer, Boolean> mapper1 = new Mapper<Integer, Boolean>(layer) {
       @Override
-      synchronized void transform(Integer input) {
+      void transform(Integer input) {
         boolean isEven = (input % 2 == 0);
         layer.get(isEven).insert(input * input);
         count++;
@@ -32,27 +30,12 @@ public class Main {
     };
     Mapper<Integer, Boolean> mapper2 = new Mapper<Integer, Boolean>(layer) {
       @Override
-      synchronized void transform(Integer input) {
+      void transform(Integer input) {
         boolean isEven = (input % 2 == 0);
         layer.get(isEven).insert(input * input);
         count++;
       }
     };
-
-    ExecutorService distribute = Executors.newCachedThreadPool();
-    for (int i = 0; i < n; i++) {
-      final int taskIndex = i;
-      distribute.submit(() -> {
-        Integer number = inputQueue.delfront();
-        if (number != null) {
-          if (taskIndex % 2 == 0) {
-            mapper1.transform(number);
-          } else {
-            mapper2.transform(number);
-          }
-        }
-      });
-    }
 
     Reducer<Integer> reducer1 = new Reducer<Integer>() {
       @Override
@@ -70,21 +53,51 @@ public class Main {
       }
     };
 
-    ExecutorService reduce = Executors.newCachedThreadPool();
+    // Start all three phases concurrently
+    
+    // Fill input queue
+    for (int i = 1; i <= n; i++) {
+      final int number = i;
+      inputExc.submit(() -> inputQueue.insert(number));
+    }
 
+    // Distribute work to mappers
     for (int i = 0; i < n; i++) {
-      reduce.submit(() -> {
-        Integer evenNumber = evenQueue.delfront();
-        if (evenNumber != null) {
-          reducer1.reduce(evenNumber);
+      final int taskIndex = i;
+      distribute.submit(() -> {
+        Integer number = inputQueue.delfront();
+        while (number == null) {
+          try { Thread.sleep(1); } catch (InterruptedException e) {}
+          number = inputQueue.delfront();
+        }
+        if (taskIndex % 2 == 0) {
+          mapper1.transform(number);
+        } else {
+          mapper2.transform(number);
         }
       });
+    }
+
+    // Reduce the results - need to handle both even and odd numbers
+    for (int i = 0; i < 500; i++) {
+      // Even number processing
+      reduce.submit(() -> {
+        Integer evenNumber = evenQueue.delfront();
+        while (evenNumber == null) {
+          try { Thread.sleep(1); } catch (InterruptedException e) {}
+          evenNumber = evenQueue.delfront();
+        }
+        reducer1.reduce(evenNumber);
+      });
       
+      // Odd number processing  
       reduce.submit(() -> {
         Integer oddNumber = oddQueue.delfront();
-        if (oddNumber != null) {
-          reducer2.reduce(oddNumber);
+        while (oddNumber == null) {
+          try { Thread.sleep(1); } catch (InterruptedException e) {}
+          oddNumber = oddQueue.delfront();
         }
+        reducer2.reduce(oddNumber);
       });
     }
 
