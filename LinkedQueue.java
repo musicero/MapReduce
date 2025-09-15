@@ -1,19 +1,37 @@
-/* You are allowed to 1. add modifiers to fields and method signatures and 2. add code at the marked places, including removing the following return */
 public class LinkedQueue<T> {
-  private Node<T> head;
-  private Node<T> tail;
+  private volatile Node<T> head;
+  private volatile Node<T> tail;
 
   public synchronized int find(T t) {
-    /* implement me */
+    Node<T> current = head;
+    while (current != null) {
+      if (current.content.equals(t)) {
+        return System.identityHashCode(current);
+      }
+      current = current.next;
+    }
     return 0;
   }
 
-  public void insert(T t) {
-    /* implement me */
+  public synchronized void insert(T t) {
+    Node<T> newNode = new Node<>(t);
+    if (tail == null) {
+      head = tail = newNode;
+    } else {
+      tail.next = newNode;
+      tail = newNode;
+    }
   }
 
   public synchronized T delfront() {
-    /* implement me */
-    return null;
+    if (head == null) {
+      return null;
+    }
+    T content = head.content;
+    head = head.next;
+    if (head == null) {
+      tail = null;
+    }
+    return content;
   }
 }

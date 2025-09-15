@@ -17,50 +17,76 @@ public class Main {
     int n = 1000;
 
     ExecutorService inputExc = Executors.newCachedThreadPool();
-    /* TODO: start n threads, each adding a single number to inputQueue */
+    for (int i = 1; i <= n; i++) {
+      final int number = i;
+      inputExc.submit(() -> inputQueue.insert(number));
+    }
 
     Mapper<Integer, Boolean> mapper1 = new Mapper<Integer, Boolean>(layer) {
       @Override
-      void transform(Integer input) {
-        /* TODO: take number and put it into the right queue */
+      synchronized void transform(Integer input) {
+        boolean isEven = (input % 2 == 0);
+        layer.get(isEven).insert(input * input);
+        count++;
       }
     };
     Mapper<Integer, Boolean> mapper2 = new Mapper<Integer, Boolean>(layer) {
       @Override
-      void transform(Integer input) {
-        /* TODO: take number and put it into the right queue */
+      synchronized void transform(Integer input) {
+        boolean isEven = (input % 2 == 0);
+        layer.get(isEven).insert(input * input);
+        count++;
       }
     };
 
     ExecutorService distribute = Executors.newCachedThreadPool();
-    /*
-     * TODO: start n threads, each taking a single number from inputQueue to either
-     * mapper1 or mapper2
-     * each mapper must have the same amount of work
-     * the mapper must add its number to the correct queue
-     */
+    for (int i = 0; i < n; i++) {
+      final int taskIndex = i;
+      distribute.submit(() -> {
+        Integer number = inputQueue.delfront();
+        if (number != null) {
+          if (taskIndex % 2 == 0) {
+            mapper1.transform(number);
+          } else {
+            mapper2.transform(number);
+          }
+        }
+      });
+    }
 
     Reducer<Integer> reducer1 = new Reducer<Integer>() {
       @Override
-      protected void reduce(Integer input) {
-        /* implement me */
+      protected synchronized void reduce(Integer input) {
+        current += input;
+        count++;
       }
     };
     Reducer<Integer> reducer2 = new Reducer<Integer>() {
 
       @Override
-      protected void reduce(Integer input) {
-        /* implement me */
+      protected synchronized void reduce(Integer input) {
+        current += input;
+        count++;
       }
     };
 
     ExecutorService reduce = Executors.newCachedThreadPool();
 
-    /*
-     * TODO: start n threads, each taking one number from either queue and giving it
-     * to a reducer.
-     * Reducer 1 will only add even numbers, reducer 2 will only add off numbers
-     */
+    for (int i = 0; i < n; i++) {
+      reduce.submit(() -> {
+        Integer evenNumber = evenQueue.delfront();
+        if (evenNumber != null) {
+          reducer1.reduce(evenNumber);
+        }
+      });
+      
+      reduce.submit(() -> {
+        Integer oddNumber = oddQueue.delfront();
+        if (oddNumber != null) {
+          reducer2.reduce(oddNumber);
+        }
+      });
+    }
 
     Thread.sleep(2000);
     System.out.println("Sum even: " + reducer1.current);
