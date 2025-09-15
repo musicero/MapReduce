@@ -13,7 +13,7 @@ public class LinkedQueue<T> {
     try {
       Node<T> current = head;
       while (current != null) {
-        if (current.content.equals(t)) {
+        if (current.content != null && current.content.equals(t)) {
           return current;
         }
         current = current.next;
