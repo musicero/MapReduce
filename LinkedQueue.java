@@ -8,6 +8,7 @@ public class LinkedQueue<T> {
   private final Condition notEmpty = lock.newCondition();
   private volatile boolean producerDone = false;
 
+  // Assignment said return pointers, but Java doesn't use that??
   public Node<T> find(T t) {
     lock.lock();
     try {
@@ -29,6 +30,7 @@ public class LinkedQueue<T> {
     try {
       Node<T> newNode = new Node<>(t);
       if (tail == null) { // if empty
+        // initialize both head and tail to the new node
         head = tail = newNode;
       } else {
         tail.next = newNode;

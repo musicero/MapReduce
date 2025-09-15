@@ -64,9 +64,9 @@ public class Main {
       }
     };
 
-    // Start all three phases concurrently
+    // we will start all three phases concurrently
 
-    // Fill input queue
+    // filling the input queue
     for (int i = 1; i <= n; i++) {
       final int number = i;
       inputPool.submit(() -> {
@@ -80,14 +80,14 @@ public class Main {
       });
     }
 
-    // Distribute work to mappers
+    // distributing work between the mappers
     for (int i = 0; i < n; i++) {
       final int taskIndex = i;
       distributerPool.submit(() -> {
         try {
           Integer number = inputQueue.delfront();
           if (number != null) {
-            // alternate
+            // alternate between the mappers
             if (taskIndex % 2 == 0) {
               mapper1.transform(number);
             } else {
@@ -109,7 +109,7 @@ public class Main {
     int evenNumbers = n / 2;
     int oddNumbers = n - n / 2;
 
-    // Reduce the results - even numbers
+    // reducing the even numbers
     for (int i = 0; i < evenNumbers; i++) {
       reducerPool.submit(() -> {
         try {
