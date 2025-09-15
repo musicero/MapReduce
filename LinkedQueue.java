@@ -8,19 +8,17 @@ public class LinkedQueue<T> {
   private final Condition notEmpty = lock.newCondition();
   private volatile boolean producerDone = false;
 
-  public int find(T t) {
+  public Node<T> find(T t) {
     lock.lock();
     try {
-      int index = 0;
       Node<T> current = head;
       while (current != null) {
         if (current.content.equals(t)) {
-          return index;
+          return current;
         }
         current = current.next;
-        index++;
       }
-      return -1;
+      return null;
     } finally {
       lock.unlock();
     }
@@ -30,13 +28,13 @@ public class LinkedQueue<T> {
     lock.lock();
     try {
       Node<T> newNode = new Node<>(t);
-      if (tail == null) {
+      if (tail == null) { // if empty
         head = tail = newNode;
       } else {
         tail.next = newNode;
         tail = newNode;
       }
-      notEmpty.signalAll();
+      notEmpty.signalAll(); // wake consumers
     } finally {
       lock.unlock();
     }
@@ -68,7 +66,7 @@ public class LinkedQueue<T> {
     lock.lock();
     try {
       producerDone = true;
-      notEmpty.signalAll();
+      notEmpty.signalAll(); // wake consumers
     } finally {
       lock.unlock();
     }
