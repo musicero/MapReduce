@@ -1,37 +1,76 @@
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Condition;
+
 public class LinkedQueue<T> {
-  private volatile Node<T> head;
-  private volatile Node<T> tail;
+  private Node<T> head;
+  private Node<T> tail;
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition notEmpty = lock.newCondition();
+  private volatile boolean producerDone = false;
 
-  public synchronized int find(T t) {
-    Node<T> current = head;
-    while (current != null) {
-      if (current.content.equals(t)) {
-        return System.identityHashCode(current);
+  public int find(T t) {
+    lock.lock();
+    try {
+      int index = 0;
+      Node<T> current = head;
+      while (current != null) {
+        if (current.content.equals(t)) {
+          return index;
+        }
+        current = current.next;
+        index++;
       }
-      current = current.next;
-    }
-    return 0;
-  }
-
-  public synchronized void insert(T t) {
-    Node<T> newNode = new Node<>(t);
-    if (tail == null) {
-      head = tail = newNode;
-    } else {
-      tail.next = newNode;
-      tail = newNode;
+      return -1;
+    } finally {
+      lock.unlock();
     }
   }
 
-  public synchronized T delfront() {
-    if (head == null) {
-      return null;
+  public void insert(T t) {
+    lock.lock();
+    try {
+      Node<T> newNode = new Node<>(t);
+      if (tail == null) {
+        head = tail = newNode;
+      } else {
+        tail.next = newNode;
+        tail = newNode;
+      }
+      notEmpty.signalAll();
+    } finally {
+      lock.unlock();
     }
-    T content = head.content;
-    head = head.next;
-    if (head == null) {
-      tail = null;
+  }
+
+  public T delfront() throws InterruptedException {
+    lock.lock();
+    try {
+      while (head == null && !producerDone) {
+        notEmpty.await();
+      }
+
+      if (head == null) {
+        return null;
+      }
+
+      T content = head.content;
+      head = head.next;
+      if (head == null) {
+        tail = null;
+      }
+      return content;
+    } finally {
+      lock.unlock();
     }
-    return content;
+  }
+
+  public void signalProducerDone() {
+    lock.lock();
+    try {
+      producerDone = true;
+      notEmpty.signalAll();
+    } finally {
+      lock.unlock();
+    }
   }
 }
